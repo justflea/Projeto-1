@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>GIFizer 200×200</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>GIFizer 200×200</h1>
+    <p>Selecione uma imagem e faremos um GIF 200×200.</p>
+    <input type="file" id="file" accept="image/*" />
+    <button id="uploadBtn">Enviar</button>
+    <div id="status"></div>
+    <div id="result"></div>
+  </main>
+  <script>
+    const PRESIGN_ENDPOINT = '<?=COLE_AQUI_URL_DO_OUTPUT_SAM_PresignEndpoint?>';
+    const OUTPUT_BUCKET = '<?=COLE_AQUI_NOME_DO_OUTPUT_BUCKET?>';
+
+    async function getPresigned(filename){
+      const res = await fetch(`${PRESIGN_ENDPOINT}?filename=${encodeURIComponent(filename)}`);
+      if(!res.ok) throw new Error('Falha ao obter URL assinada');
+      return res.json();
+    }
+
+    async function uploadPresigned(presigned, file){
+      const formData = new FormData();
+      Object.entries(presigned.fields).forEach(([k,v]) => formData.append(k,v));
+      formData.append('file', file);
+      const res = await fetch(presigned.url, { method: 'POST', body: formData });
+      if(!res.ok) throw new Error('Falha no upload');
+      return true;
+    }
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('file');
+      const status = document.getElementById('status');
+      const result = document.getElementById('result');
+      result.innerHTML = '';
+      if(!fileInput.files.length){ alert('Escolha um arquivo.'); return; }
+      const file = fileInput.files[0];
+      status.textContent = 'Obtendo URL assinada…';
+      try{
+        const presigned = await getPresigned(file.name);
+        status.textContent = 'Enviando…';
+        await uploadPresigned(presigned, file);
+        status.textContent = 'Processando (pode levar alguns segundos)…';
+
+        // O Lambda salvará como nome_200x200.gif no output-bucket
+        const base = file.name.replace(/\.[^.]+$/, '');
+        const outKey = `${base}_200x200.gif`;
+
+        // Como o output bucket é privado por padrão, aqui só mostramos a chave.
+        // Opcional: expor via um endpoint que gera presigned GET p/ baixar/preview.
+        result.innerHTML = `
+          <p>Feito! Saída: <code>${outKey}</code> no bucket <code>${OUTPUT_BUCKET}</code>.</p>
+          <p>(Dica: você pode gerar um link temporário via backend para visualização.)</p>
+        `;
+        status.textContent = 'Concluído.';
+      }catch(err){
+        status.textContent = 'Erro: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
