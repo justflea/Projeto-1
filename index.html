@@ -9,16 +9,16 @@
 <body>
   <main class="card">
     <h1>GIFizer 200×200</h1>
-    <p>Selecione uma imagem e faremos um GIF 200×200.</p>
+    <p>Selecione uma imagem e criaremos uma thumbnail (200×200).</p>
     <input type="file" id="file" accept="image/*" />
     <button id="uploadBtn">Enviar</button>
     <div id="status"></div>
     <div id="result"></div>
   </main>
   <script>
-    // SUBSTITUA ESTES VALORES PELOS DADOS REAIS DO SEU BACKEND
-    const PRESIGN_ENDPOINT = 'URL_DA_SUA_API_AQUI';
-    const OUTPUT_BUCKET = 'NOME_DO_SEU_BUCKET_AQUI';
+    // Você vai preencher essas duas variáveis APÓS rodar o Kiro na AWS
+    const PRESIGN_ENDPOINT = 'URL_GERADA_PELO_KIRO';
+    const OUTPUT_BUCKET = 'NOME_DO_BUCKET_GERADO_PELO_KIRO';
 
     async function getPresigned(filename){
       const res = await fetch(`${PRESIGN_ENDPOINT}?filename=${encodeURIComponent(filename)}`);
@@ -41,20 +41,21 @@
       const result = document.getElementById('result');
       result.innerHTML = '';
       if(!fileInput.files.length){ alert('Escolha um arquivo.'); return; }
+      
       const file = fileInput.files[0];
-      status.textContent = 'Obtendo URL assinada…';
+      status.textContent = 'Obtendo permissão de upload…';
+      
       try{
         const presigned = await getPresigned(file.name);
-        status.textContent = 'Enviando…';
+        status.textContent = 'Enviando imagem…';
         await uploadPresigned(presigned, file);
-        status.textContent = 'Processando (pode levar alguns segundos)…';
+        status.textContent = 'Processando thumbnail (pode levar alguns segundos)…';
 
         const base = file.name.replace(/\.[^.]+$/, '');
         const outKey = `${base}_200x200.gif`;
 
         result.innerHTML = `
           <p>Feito! Saída: <code>${outKey}</code> no bucket <code>${OUTPUT_BUCKET}</code>.</p>
-          <p>(Dica: você pode gerar um link temporário via backend para visualização.)</p>
         `;
         status.textContent = 'Concluído.';
       }catch(err){
