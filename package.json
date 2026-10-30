@@ -1,0 +1,6 @@
+{
+  "name": "gifizer-vercel",
+  "dependencies": {
+    "sharp": "^0.32.6"
+  }
+}
